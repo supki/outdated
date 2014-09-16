@@ -1,0 +1,78 @@
+name:                outdated
+version:             0.1.0.0
+synopsis:            Does your package accept the latest versions of its dependencies?
+-- description:         
+homepage:            http://supki.github.io/outdated
+license:             BSD2
+license-file:        LICENSE
+author:              Matvey Aksenov
+maintainer:          matvey.aksenov@gmail.com
+copyright:           Matvey Aksenov 2014
+category:            Development
+build-type:          Simple
+cabal-version:       >= 1.10
+extra-source-files:
+  README.markdown
+  CHANGELOG.markdown
+
+source-repository head
+  type: git
+  location: https://github.com/supki/outdated
+
+executable outdated
+  default-language:
+    Haskell2010
+  main-is:
+    Main.hs
+  build-depends:
+      base                 >= 4.6   && < 5
+    , bifunctors           >= 4.1
+    , bytestring
+    , Cabal                >= 1.18
+    , conduit              >= 1.2
+    , conduit-extra        >= 1.1
+    , containers
+    , directory
+    , filepath
+    , http-conduit         >= 2.1   && < 2.2
+    , optparse-applicative >= 0.10  && < 0.11
+    , parsec               >= 3.1.5
+    , resourcet            >= 1.1
+    , semigroups           >= 0.15
+    , text                 >= 1.1
+    , transformers         >= 0.4
+  hs-source-dirs:
+    src
+  other-modules:
+    Conf
+    Latest
+    Latest.Parse
+    Latest.Type
+    Path
+    Progress
+
+test-suite spec
+  default-language:
+    Haskell2010
+  type:
+    exitcode-stdio-1.0
+  main-is:
+    Spec.hs
+  build-depends:
+      base
+    , bifunctors
+    , bytestring
+    , Cabal
+    , hspec                >= 1.11
+    , parsec
+    , optparse-applicative
+    , semigroups
+    , transformers
+  hs-source-dirs:
+    src
+    test/spec
+  other-modules:
+    ConfSpec
+    Conf.ParseSpec
+  cpp-options:
+    -DTEST

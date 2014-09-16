@@ -1,0 +1,9 @@
+name:    outdated
+version: 1.0
+
+library
+  default-language:
+    Haskell98
+  build-depends:
+      base == 4.*
+    , text < 1.2

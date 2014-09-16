@@ -1,0 +1,11 @@
+name:    os
+version: 1.0
+
+library
+  default-language:
+    Haskell98
+  build-depends:
+      base == 4.*
+  if os(foo)
+    build-depends:
+      text < 1.2

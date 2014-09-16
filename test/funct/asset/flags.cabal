@@ -1,0 +1,17 @@
+name:    flags
+version: 1.0
+
+flag qux
+  default: false
+
+flag quux
+  default: true
+
+library
+  default-language:
+    Haskell98
+  build-depends:
+      base == 4.*
+  if flag(qux) && !flag(quux)
+    build-depends:
+      text < 1.2

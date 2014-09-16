@@ -1,0 +1,11 @@
+name:    arch
+version: 1.0
+
+library
+  default-language:
+    Haskell98
+  build-depends:
+      base == 4.*
+  if arch(bar)
+    build-depends:
+      text < 1.2
