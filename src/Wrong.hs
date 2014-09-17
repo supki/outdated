@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 module Wrong
   ( Wrong(..)
   , CabalFileError(..)
@@ -41,13 +42,23 @@ import qualified Latest
 data Wrong
   = WrongCabal FilePath CabalFileError
   | WrongConf FilePath Conf (NonEmpty (NonEmpty Problem))
-    deriving (Show, Eq)
+    deriving
+    ( Show
+#if __GLASGOW_HASKELL__ >= 708
+    , Eq
+#endif
+    )
 
 data CabalFileError
   = IO IOException
   | Error ErrorCall
   | Parse PError
-    deriving (Show, Eq)
+    deriving
+    ( Show
+#if __GLASGOW_HASKELL__ >= 708
+    , Eq
+#endif
+    )
 
 data Problem = Problem Target PackageName VersionRange (Maybe Version)
     deriving (Show, Eq)

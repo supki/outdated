@@ -1,0 +1,13 @@
+language: haskell
+
+ghc:
+    - 7.6
+    - 7.8
+
+script:
+    - cabal configure --enable-tests
+    - cabal build
+    - cabal test
+    - test/funct/test.sh dist/build/outdated/outdated
+    - dist/build/outdated/outdated outdated.cabal
+    - cabal sdist
