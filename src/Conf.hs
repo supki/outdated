@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE NamedFieldPuns #-}
 module Conf
   ( cli
   , unparse
@@ -12,23 +13,35 @@ module Conf
 #else
   , Conf, os, arch, impl, cflags, flags
 #endif
+  , GitHub(..)
+  , displayGitHub
   ) where
 
 import           Control.Applicative
 import           Data.Foldable (asum)
+import qualified Data.List as List
 import           Data.Monoid (mconcat)
 import           Data.Version (showVersion)
 import           Distribution.PackageDescription (GenericPackageDescription(..), Flag(..), FlagAssignment)
 import           Options.Applicative
+import           Text.Printf (printf)
 
 import           Conf.Parse (Conf(..), defaultConf, parse, unparse)
 import           Paths_outdated (version)
 
 
-cli :: IO ([Conf], [FilePath])
+cli :: IO ([Conf], [Either GitHub FilePath])
 cli = customExecParser (prefs (showHelpOnError <> columns 120)) cliParser
 
-cliParser :: ParserInfo ([Conf], [FilePath])
+data GitHub = GitHub
+  { owner   :: String
+  , project :: String
+  } deriving (Show, Eq)
+
+displayGitHub :: GitHub -> String
+displayGitHub GitHub { owner, project } = printf "https://github.com/%s/%s" owner project
+
+cliParser :: ParserInfo ([Conf], [Either GitHub FilePath])
 cliParser = info (helper <*> parser) (mconcat
   [ fullDesc
   , progDesc "Does your package accept the latest versions of its dependencies?"
@@ -45,13 +58,34 @@ cliParser = info (helper <*> parser) (mconcat
         ])
       , pure [defaultConf]
       ]
-    <*> arguments (metavar "CABAL" <> help "Path to .cabal file")
+    <*> some
+      (argument (fmap Left url <|> fmap Right str)
+                (metavar "URL/FILEPATH" <> help "GitHub project URL or a local .cabal file path"))
 
-options :: (String -> ReadM a) -> Mod OptionFields a -> Parser [a]
+options :: ReadM a -> Mod OptionFields a -> Parser [a]
 options r = some . option r
 
-arguments :: Mod ArgumentFields String -> Parser [String]
-arguments = some . strArgument
+url :: ReadM GitHub
+url = eitherReader $ \str -> do
+  str' <- note ("Not a GitHub URL: ‘" ++ str ++ "’") (List.stripPrefix gitHub str)
+  case breakOn (== '/') str' of
+    [owner, project]
+      -> Right GitHub { owner, project }
+    _ -> Left ("Not a GitHub project URL: ‘" ++ str ++ "’")
+ where
+  gitHub = "https://github.com/"
+
+note :: a -> Maybe b -> Either a b
+note a = maybe (Left a) Right
+
+breakOn :: (a -> Bool) -> [a] -> [[a]]
+breakOn p = go
+ where
+  go xs = case break p xs of
+    (x, []) -> [x]
+    (x, y : ys)
+      | p y       -> x : go ys
+      | otherwise -> error "Conf.breakOn: impossible!"
 
 formConf :: Conf -> GenericPackageDescription -> Conf
 formConf c pd = c { pflags = packageFlagAssignment pd }

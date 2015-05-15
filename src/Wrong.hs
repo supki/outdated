@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE NamedFieldPuns #-}
 module Wrong
   ( Wrong(..)
   , CabalFileError(..)
@@ -10,11 +11,12 @@ module Wrong
 
 import           Control.Exception (IOException, ErrorCall, catches, Handler(..), evaluate)
 import           Control.Monad.IO.Class (MonadIO(..))
+import qualified Data.ByteString.Lazy as ByteString
 import           Data.Conduit (Source)
 import qualified Data.Conduit as C
 import           Data.Foldable (for_, toList)
 import           Data.Function (on)
-import           Data.List (intercalate)
+import qualified Data.List as List
 import           Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map.Strict as Map
@@ -32,8 +34,12 @@ import           Distribution.PackageDescription
 import           Distribution.PackageDescription.Parse (ParseResult(..), parsePackageDescription)
 import           Distribution.Text (display)
 import           Distribution.Version (VersionRange, intersectVersionRanges, withinRange)
+import qualified Network.HTTP.Conduit as Http
+import           System.FilePath ((</>), (<.>))
+import           System.IO.Temp (withSystemTempDirectory)
+import           Text.Printf (printf)
 
-import           Conf (Conf)
+import           Conf (Conf, GitHub(..))
 import qualified Conf
 import           Latest (Latest)
 import qualified Latest
@@ -66,16 +72,18 @@ data Problem = Problem Target PackageName VersionRange (Maybe Version)
 data Target = Library | Executable String | TestSuite String | Benchmark String
     deriving (Show, Eq)
 
-produce :: MonadIO m => [Conf] -> [FilePath] -> Latest PackageName Version -> Source m Wrong
+produce :: MonadIO m => [Conf] -> [Either GitHub FilePath] -> Latest PackageName Version -> Source m Wrong
 produce confs paths index =
   for_ paths $ \path -> do
-    ed <- readCabalFile path
+    ed <- either (\url -> downloadCabalFile url readCabalFile)
+                 readCabalFile
+                 path
     case ed of
-      Left  e -> C.yield (WrongCabal path e)
+      Left  e -> C.yield (WrongCabal (either Conf.displayGitHub id path) e)
       Right d -> for_ confs $ \conf -> do
         case askCabal index (Conf.formConf conf d) d of
           []       -> return ()
-          (c : cs) -> C.yield (WrongConf path conf (c :| cs))
+          (c : cs) -> C.yield (WrongConf (either Conf.displayGitHub id path) conf (c :| cs))
 
 prettify :: Wrong -> String
 prettify = pp
@@ -83,7 +91,7 @@ prettify = pp
   pp (WrongCabal path (IO e))    = "Couldn't read ‘"  ++ path ++ "’: " ++ show e
   pp (WrongCabal path (Error e)) = "Couldn't parse ‘"  ++ path ++ "’: " ++ show e
   pp (WrongCabal path (Parse e)) = "Couldn't parse ‘" ++ path ++ "’: " ++ show e
-  pp (WrongConf path conf xs)    = intercalate "\n"
+  pp (WrongConf path conf xs)    = List.intercalate "\n"
     . (pconf path conf :) . flip concatMap (toList xs) $ \ys -> pcomponent (NonEmpty.head ys) : map pproblem (toList ys)
 
   pconf path conf = "‘" ++ path ++ "’ has outdated dependencies against ‘" ++ Conf.unparse conf ++ "’:"
@@ -96,6 +104,18 @@ prettify = pp
   pproblem (Problem _ (PackageName n) _ Nothing) = "    ‘"  ++ n ++ "’ isn't in the index"
   pproblem (Problem _ (PackageName n) r (Just v)) =
     "    the version range of ‘"  ++ n ++ "’ (" ++ display r ++ ") does not include the latest version " ++ showVersion v
+
+downloadCabalFile :: MonadIO m => GitHub -> (FilePath -> IO a) -> m a
+downloadCabalFile GitHub { owner, project } f = liftIO $
+  withSystemTempDirectory project $ \tmpdir -> do
+    let tmpfile = tmpdir </> project <.> "cabal"
+    req <- Http.parseUrl cabalUrl
+    Http.withManager $ \m -> do
+      res <- Http.httpLbs req m
+      liftIO (ByteString.writeFile tmpfile (Http.responseBody res))
+    f tmpfile
+ where
+  cabalUrl = printf "https://raw.githubusercontent.com/%s/%s/master/%s.cabal" owner project project
 
 readCabalFile :: MonadIO m => FilePath -> m (Either CabalFileError GenericPackageDescription)
 readCabalFile f = liftIO $ do
