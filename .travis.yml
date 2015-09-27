@@ -1,13 +1,13 @@
-language: haskell
+sudo: required
 
-ghc:
-    - 7.6
-    - 7.8
+before_install:
+  - curl -sS https://nixos.org/nix/install | sh
+  - source $HOME/.nix-profile/etc/profile.d/nix.sh
+
+install:
+  - nix-shell --run 'true'
 
 script:
-    - cabal configure --enable-tests
-    - cabal build
-    - cabal test
-    - test/funct/test.sh dist/build/outdated/outdated
-    - dist/build/outdated/outdated outdated.cabal
-    - cabal sdist
+  - nix-shell --run 'cabal test'
+  - nix-shell --run 'bats ./test/funct/test.bats'
+  - nix-shell --run 'cabal sdist'

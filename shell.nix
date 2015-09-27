@@ -5,10 +5,11 @@
   ]);
   cabal-install = pkgs.haskell.packages.${compiler}.cabal-install;
   pkg = (import ./default.nix { inherit nixpkgs compiler; });
+  bats = pkgs.callPackage ./nix/bats.nix {};
 in
   pkgs.stdenv.mkDerivation rec {
     name = pkg.pname;
-    buildInputs = [ ghc cabal-install ] ++ pkg.env.buildInputs;
+    buildInputs = [ ghc cabal-install ] ++ pkg.env.buildInputs ++ [ bats ];
     shellHook = ''
       ${pkg.env.shellHook}
       export IN_WHICH_NIX_SHELL=${name}
