@@ -24,3 +24,10 @@ let g:syntastic_haskell_hdevtools_args= s:hdevtools_options
 	\ , '-DTEST'
 	\ ] + s:discover_cabal_sandbox(".cabal-sandbox/*.conf.d")
 	\ )
+
+let g:vim_flipping_substitutions =
+	\ { 'src/Main(\.l?hs)':      'test/Spec\1'
+	\ , 'test/Spec(\.l?hs)':     'src/Main\1'
+	\ , 'src/(.+)(\.l?hs)':      'test/spec/\1Spec\2'
+	\ , 'test/spec/(.+)Spec(\.l?hs)': 'src/\1\2'
+	\ }
