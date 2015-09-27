@@ -20,7 +20,6 @@ module Conf
 import           Control.Applicative
 import           Data.Foldable (asum)
 import qualified Data.List as List
-import           Data.Monoid (mconcat)
 import           Data.Version (showVersion)
 import           Distribution.PackageDescription (GenericPackageDescription(..), Flag(..), FlagAssignment)
 import           Options.Applicative
@@ -66,12 +65,12 @@ options :: ReadM a -> Mod OptionFields a -> Parser [a]
 options r = some . option r
 
 url :: ReadM GitHub
-url = eitherReader $ \str -> do
-  str' <- note ("Not a GitHub URL: ‘" ++ str ++ "’") (List.stripPrefix gitHub str)
-  case breakOn (== '/') str' of
+url = eitherReader $ \s -> do
+  s' <- note ("Not a GitHub URL: ‘" ++ s ++ "’") (List.stripPrefix gitHub s)
+  case breakOn (== '/') s' of
     [owner, project]
       -> Right GitHub { owner, project }
-    _ -> Left ("Not a GitHub project URL: ‘" ++ str ++ "’")
+    _ -> Left ("Not a GitHub project URL: ‘" ++ s ++ "’")
  where
   gitHub = "https://github.com/"
 

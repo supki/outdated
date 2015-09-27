@@ -15,7 +15,7 @@ import qualified Data.Conduit.Zlib as CZ
 import           Data.List (unfoldr)
 import qualified Data.Map.Strict as Map
 import           Data.Monoid ((<>))
-import           Data.Version (Version(..))
+import           Data.Version (Version, makeVersion)
 import           Distribution.Package (PackageName(..))
 import           Prelude hiding (lookup)
 
@@ -33,7 +33,7 @@ peekIndex = go 0 ByteString.empty
     | ByteString.length bs < 135 = maybe pass (\bs' -> go 0 (bs <> bs')) =<< C.await
     | otherwise =
       let h = ByteString.take 135 bs
-          p = fst (ByteString.breakByte 0 h)
+          p = fst (ByteString.break (== 0) h)
           s = parseSize h
       in unless (ByteString.null p) $ do
            C.yield (parsePath p)
@@ -50,15 +50,13 @@ parseSize =
 
 parsePath :: ByteString -> (PackageName, Version)
 parsePath xs =
-  case ByteString.breakByte (fromIntegral (ord '/')) xs of
-    (ys, xs') -> case ByteString.breakByte (fromIntegral (ord '/')) (ByteString.drop 1 xs') of
+  case ByteString.break (== fromIntegral (ord '/')) xs of
+    (ys, xs') -> case ByteString.break (== fromIntegral (ord '/')) (ByteString.drop 1 xs') of
       (zs, _) -> (PackageName (Char8.unpack ys), parseVersion zs)
 
 parseVersion :: ByteString -> Version
-parseVersion bs = Version
-  { versionBranch = unfoldr (fmap (fmap (ByteString.drop 1)) . Char8.readInt) bs
-  , versionTags = []
-  }
+parseVersion =
+  makeVersion . unfoldr (fmap (fmap (ByteString.drop 1)) . Char8.readInt)
 
 pass :: Monad m => m ()
 pass = return ()

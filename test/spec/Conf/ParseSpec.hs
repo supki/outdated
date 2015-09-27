@@ -1,6 +1,6 @@
 module Conf.ParseSpec (spec) where
 
-import           Data.Version (Version(..))
+import           Data.Version (makeVersion)
 import           Distribution.Compiler (CompilerId(..), CompilerFlavor(..))
 import           Distribution.PackageDescription (FlagName(..))
 import           Distribution.System (OS(..), Arch(..))
@@ -25,7 +25,7 @@ spec = do
     it "accepts compilers Cabal considers valid" $
       Conf.parse ";;yhc-1.0"
      `shouldBe`
-      Right (Conf.defaultConf { impl = CompilerId YHC Version { versionBranch = [1, 0], versionTags = [] } })
+      Right (Conf.defaultConf { impl = CompilerId YHC (makeVersion [1, 0]) })
 
     it "accepts flags assignments" $
       Conf.parse ";;;+foo,-bar,-baz"
@@ -42,7 +42,7 @@ spec = do
      `shouldBe`
       Right (Conf.defaultConf {
           os   = Windows
-        , impl = CompilerId YHC Version { versionBranch = [1, 0], versionTags = [] }
+        , impl = CompilerId YHC (makeVersion [1, 0])
         })
 
     it "flag assignments start with + or -" $

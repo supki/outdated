@@ -8,7 +8,7 @@ module Latest
 import           Control.Applicative
 import           Control.Monad
 import           Control.Monad.IO.Class (MonadIO(..))
-import           Control.Monad.Trans.Resource (MonadResource)
+import           Control.Monad.Trans.Resource (MonadResource, runResourceT)
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString as ByteString
 import           Data.Conduit (ResumableSource, Sink, ($$+-), ($$), (=$=))
@@ -32,9 +32,10 @@ import           Progress (progress)
 gather :: IO (Latest PackageName Version)
 gather = do
   url <- Path.indexUrl
-  Http.withManager $ \m -> do
-    req <- Http.parseUrl url
-    res <- Http.http req m
+  man <- Http.newManager Http.tlsManagerSettings
+  req <- Http.parseUrl url
+  runResourceT $ do
+    res <- Http.http req man
     case parseIndexSignature res of
       Nothing -> downloadIndex res
       Just sig -> do

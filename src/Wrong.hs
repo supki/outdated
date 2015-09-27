@@ -110,9 +110,9 @@ downloadCabalFile GitHub { owner, project } f = liftIO $
   withSystemTempDirectory project $ \tmpdir -> do
     let tmpfile = tmpdir </> project <.> "cabal"
     req <- Http.parseUrl cabalUrl
-    Http.withManager $ \m -> do
-      res <- Http.httpLbs req m
-      liftIO (ByteString.writeFile tmpfile (Http.responseBody res))
+    man <- Http.newManager Http.tlsManagerSettings
+    res <- Http.httpLbs req man
+    liftIO (ByteString.writeFile tmpfile (Http.responseBody res))
     f tmpfile
  where
   cabalUrl = printf "https://raw.githubusercontent.com/%s/%s/master/%s.cabal" owner project project

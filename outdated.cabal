@@ -26,7 +26,7 @@ executable outdated
     Main.hs
   build-depends:
       base                 >= 4.6   && < 5
-    , bifunctors           >= 4.1   && < 5
+    , bifunctors           >= 4.1   && < 6
     , bytestring
     , Cabal                >= 1.18
     , conduit              >= 1.2   && < 1.3

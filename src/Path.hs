@@ -4,7 +4,6 @@ module Path
   , indexUrl
   ) where
 
-import           Control.Applicative
 import           Control.Monad
 import           Control.Monad.IO.Class (MonadIO(..))
 import           System.Directory (createDirectoryIfMissing, getAppUserDataDirectory)
