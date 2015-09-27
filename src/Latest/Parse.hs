@@ -32,12 +32,12 @@ peekIndex = go 0 ByteString.empty
     | ByteString.null bs = maybe pass (go 0) =<< C.await
     | ByteString.length bs < 135 = maybe pass (\bs' -> go 0 (bs <> bs')) =<< C.await
     | otherwise =
-      let h = ByteString.take 135 bs
-          p = fst (ByteString.break (== 0) h)
-          s = parseSize h
-      in unless (ByteString.null p) $ do
-           C.yield (parsePath p)
-           go (512 + (((s - 1) `quot` 512) + 1) * 512) bs
+      let header = ByteString.take 135 bs
+          path = fst (ByteString.break (== 0) header)
+          size = parseSize header
+      in unless (ByteString.null path) $ do
+           C.yield (parsePath path)
+           go (512 + ((max 0 (size - 1) `quot` 512) + 1) * 512) bs
   go skip bs
     | ByteString.null bs = maybe pass (go skip) =<< C.await
     | otherwise = go (max 0 (skip - ByteString.length bs)) (ByteString.drop skip bs)

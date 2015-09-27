@@ -1,7 +1,7 @@
 module Main (main) where
 
 import           Control.Monad.IO.Class (MonadIO(..))
-import           Data.Conduit (Sink, ($$))
+import           Data.Conduit (Sink, (=$=), runConduit)
 import qualified Data.Conduit as C
 import           Data.Function (fix)
 import           System.Exit (exitFailure, exitSuccess)
@@ -15,7 +15,8 @@ main :: IO a
 main = do
   (confs, paths) <- Conf.cli
   index <- Latest.gather
-  Wrong.produce confs paths index $$ C.mapInput Wrong.prettify (\_ -> Nothing) printAndDie
+  runConduit $
+    Wrong.produce confs paths index =$= C.mapInput Wrong.prettify (\_ -> Nothing) printAndDie
 
 printAndDie :: MonadIO m => Sink String m a
 printAndDie = flip fix True $ \loop r -> do

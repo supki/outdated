@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -u
+set -euo pipefail
 
 app=$(readlink --canonicalize-existing --verbose "$1")
 
@@ -14,6 +14,7 @@ export OUTDATED_INDEX='https://hackage.haskell.org/packages/index.tar.gz'
 main() {
 	pushd "$(dirname "${BASH_SOURCE[0]}")" > /dev/null
 
+	set +e
 	test-enoent
 	test-einval
 	test-enoparse
