@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 module Conf
   ( cli
@@ -13,6 +14,8 @@ module Conf
 #else
   , Conf, os, arch, impl, cflags, flags
 #endif
+  , Arg(..)
+  , foldArg
   , GitHub(..)
   , displayGitHub
   ) where
@@ -29,18 +32,31 @@ import           Conf.Parse (Conf(..), defaultConf, parse, unparse)
 import           Paths_outdated (version)
 
 
-cli :: IO ([Conf], [Either GitHub FilePath])
+cli :: IO ([Conf], [Arg])
 cli = customExecParser (prefs (showHelpOnError <> columns 120)) cliParser
 
+data Arg
+  = ArgGitHub GitHub
+  | ArgDirectory FilePath
+  | ArgFile FilePath
+    deriving (Show, Eq)
+
+foldArg :: (GitHub -> a) -> (FilePath -> a) -> (FilePath -> a) -> Arg -> a
+foldArg f g h = \case
+  ArgGitHub x -> f x
+  ArgDirectory x -> g x
+  ArgFile x -> h x
+
 data GitHub = GitHub
-  { owner   :: String
-  , project :: String
+  { gitHubOwner   :: String
+  , gitHubProject :: String
   } deriving (Show, Eq)
 
 displayGitHub :: GitHub -> String
-displayGitHub GitHub { owner, project } = printf "https://github.com/%s/%s" owner project
+displayGitHub GitHub {gitHubOwner, gitHubProject} =
+  printf "https://github.com/%s/%s" gitHubOwner gitHubProject
 
-cliParser :: ParserInfo ([Conf], [Either GitHub FilePath])
+cliParser :: ParserInfo ([Conf], [Arg])
 cliParser = info (helper <*> parser) (mconcat
   [ fullDesc
   , progDesc "Does your package accept the latest versions of its dependencies?"
@@ -58,7 +74,7 @@ cliParser = info (helper <*> parser) (mconcat
       , pure [defaultConf]
       ]
     <*> some
-      (argument (fmap Left url <|> fmap Right str)
+      (argument (fmap ArgGitHub url <|> fmap ArgFile file <|> fmap ArgDirectory dir)
                 (metavar "URL/FILEPATH" <> help "GitHub project URL or a local .cabal file path"))
 
 options :: ReadM a -> Mod OptionFields a -> Parser [a]
@@ -68,11 +84,21 @@ url :: ReadM GitHub
 url = eitherReader $ \s -> do
   s' <- note ("Not a GitHub URL: ‘" ++ s ++ "’") (List.stripPrefix gitHub s)
   case breakOn (== '/') s' of
-    [owner, project]
-      -> Right GitHub { owner, project }
+    [gitHubOwner, gitHubProject]
+      -> Right GitHub {gitHubOwner, gitHubProject}
     _ -> Left ("Not a GitHub project URL: ‘" ++ s ++ "’")
  where
   gitHub = "https://github.com/"
+
+file :: ReadM FilePath
+file = eitherReader $ \s -> do
+  s <$ note ("Not a Cabal file: ‘" ++ s ++ "’") (stripSuffix ".cabal" s)
+ where
+  stripSuffix suffix path =
+    fmap reverse (List.stripPrefix (reverse suffix) (reverse path))
+
+dir :: ReadM FilePath
+dir = str
 
 note :: a -> Maybe b -> Either a b
 note a = maybe (Left a) Right

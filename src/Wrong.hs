@@ -35,8 +35,8 @@ import           Distribution.PackageDescription.Parse (ParseResult(..), parsePa
 import           Distribution.Text (display)
 import           Distribution.Version (VersionRange, intersectVersionRanges, withinRange)
 import qualified Network.HTTP.Conduit as Http
-import           System.FilePath ((</>), (<.>))
-import           System.IO.Temp (withSystemTempDirectory)
+import           System.Directory (getDirectoryContents)
+import           System.FilePath ((</>), (<.>), combine)
 import           Text.Printf (printf)
 
 import           Conf (Conf, GitHub(..))
@@ -72,18 +72,19 @@ data Problem = Problem Target PackageName VersionRange (Maybe Version)
 data Target = Library | Executable String | TestSuite String | Benchmark String
     deriving (Show, Eq)
 
-produce :: MonadIO m => [Conf] -> [Either GitHub FilePath] -> Latest PackageName Version -> Source m Wrong
-produce confs paths index =
-  for_ paths $ \path -> do
-    ed <- either (\url -> downloadCabalFile url readCabalFile)
-                 readCabalFile
-                 path
-    case ed of
-      Left  e -> C.yield (WrongCabal (either Conf.displayGitHub id path) e)
-      Right d -> for_ confs $ \conf -> do
-        case askCabal index (Conf.formConf conf d) d of
-          []       -> return ()
-          (c : cs) -> C.yield (WrongConf (either Conf.displayGitHub id path) conf (c :| cs))
+produce :: MonadIO m => FilePath -> [Conf] -> [Conf.Arg] -> Latest PackageName Version -> Source m Wrong
+produce tmpDir confs args index =
+  for_ args $ \arg -> do
+    files <- Conf.foldArg (fmap pure . downloadCabalFile tmpDir) listCabalFiles (pure . pure) arg
+    for_ files $ \file -> do
+      ed <- readCabalFile file
+      case ed of
+        Left  e -> C.yield (WrongCabal (Conf.foldArg Conf.displayGitHub (const file) (const file) arg) e)
+        Right d ->
+          for_ confs $ \conf -> do
+            case askCabal index (Conf.formConf conf d) d of
+              []       -> return ()
+              (c : cs) -> C.yield (WrongConf (Conf.foldArg Conf.displayGitHub (const file) (const file) arg) conf (c :| cs))
 
 prettify :: Wrong -> String
 prettify = pp
@@ -105,17 +106,20 @@ prettify = pp
   pproblem (Problem _ (PackageName n) r (Just v)) =
     "    the version range of ‘"  ++ n ++ "’ (" ++ display r ++ ") does not include the latest version " ++ showVersion v
 
-downloadCabalFile :: MonadIO m => GitHub -> (FilePath -> IO a) -> m a
-downloadCabalFile GitHub { owner, project } f = liftIO $
-  withSystemTempDirectory project $ \tmpdir -> do
-    let tmpfile = tmpdir </> project <.> "cabal"
-    req <- Http.parseUrl cabalUrl
-    man <- Http.newManager Http.tlsManagerSettings
-    res <- Http.httpLbs req man
-    liftIO (ByteString.writeFile tmpfile (Http.responseBody res))
-    f tmpfile
+downloadCabalFile :: MonadIO m => FilePath -> GitHub -> m FilePath
+downloadCabalFile tmpDir GitHub {gitHubOwner, gitHubProject} = liftIO $ do
+  let tmpFile = tmpDir </> gitHubProject <.> "cabal"
+  req <- Http.parseUrl cabalUrl
+  man <- Http.newManager Http.tlsManagerSettings
+  res <- Http.httpLbs req man
+  liftIO (ByteString.writeFile tmpFile (Http.responseBody res))
+  return tmpFile
  where
-  cabalUrl = printf "https://raw.githubusercontent.com/%s/%s/master/%s.cabal" owner project project
+  cabalUrl = printf "https://raw.githubusercontent.com/%s/%s/master/%s.cabal" gitHubOwner gitHubProject gitHubProject
+
+listCabalFiles :: MonadIO m => FilePath -> m [FilePath]
+listCabalFiles dir =
+  liftIO (fmap (map (combine dir) . filter (List.isSuffixOf ".cabal")) (getDirectoryContents dir))
 
 readCabalFile :: MonadIO m => FilePath -> m (Either CabalFileError GenericPackageDescription)
 readCabalFile f = liftIO $ do

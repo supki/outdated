@@ -5,6 +5,7 @@ import           Data.Conduit (Sink, (=$=), runConduit)
 import qualified Data.Conduit as C
 import           Data.Function (fix)
 import           System.Exit (exitFailure, exitSuccess)
+import           System.IO.Temp (withSystemTempDirectory)
 
 import qualified Conf
 import qualified Latest
@@ -15,8 +16,9 @@ main :: IO a
 main = do
   (confs, paths) <- Conf.cli
   index <- Latest.gather
-  runConduit $
-    Wrong.produce confs paths index =$= C.mapInput Wrong.prettify (\_ -> Nothing) printAndDie
+  withSystemTempDirectory "outdated" $ \tmpDir ->
+    runConduit $
+      Wrong.produce tmpDir confs paths index =$= C.mapInput Wrong.prettify (\_ -> Nothing) printAndDie
 
 printAndDie :: MonadIO m => Sink String m a
 printAndDie = flip fix True $ \loop r -> do
