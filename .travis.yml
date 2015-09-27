@@ -5,9 +5,9 @@ before_install:
   - source $HOME/.nix-profile/etc/profile.d/nix.sh
 
 install:
-  - nix-shell --run 'true'
+  - nix-shell --run 'cabal update'
 
 script:
   - nix-shell --run 'cabal test'
-  - nix-shell --run 'bats ./test/funct/test.bats'
+  - nix-shell --run 'cabal build && bats ./test/funct/test.bats'
   - nix-shell --run 'cabal sdist'
