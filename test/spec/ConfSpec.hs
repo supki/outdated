@@ -6,7 +6,7 @@ import           Distribution.System (OS(..), Arch(..))
 import           Options.Applicative
 import           Test.Hspec
 
-import           Conf (Conf(..))
+import           Conf (Conf(..), GitHub(..))
 import qualified Conf
 
 
@@ -19,8 +19,9 @@ spec = do
     it "the list of arguments should include at least one filepath" $
       parse ["-c", "linux;x86_64;ghc-7.8;"] `shouldBe` Nothing
 
-    it "the list of arguments can include only filepaths" $
-      paths (parse ["foo.cabal", "bar.cabal"]) `shouldBe` Just [Right "foo.cabal", Right "bar.cabal"]
+    it "the list of arguments can include only filepaths and GitHub links" $
+      paths (parse ["foo.cabal", "bar.cabal", "https://github.com/qux/quux"])
+        `shouldBe` Just [Right "foo.cabal", Right "bar.cabal", Left GitHub {owner = "qux", project = "quux"}]
 
     it "if the list of arguments includes only filepaths the default configuration is chosen" $
       confs (parse ["foo.cabal", "bar.cabal"]) `shouldBe` Just [Conf.defaultConf]
@@ -53,7 +54,7 @@ windows_i386_ghc70 =
     , pflags = []
   }
 
-parse :: [String] -> Maybe ([Conf], [Either Conf.GitHub FilePath])
+parse :: [String] -> Maybe ([Conf], [Either GitHub FilePath])
 parse = getParseResult . execParserPure (prefs mempty) Conf.cliParser
 
 paths :: Functor f => f (a, b) -> f b
