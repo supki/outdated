@@ -36,21 +36,21 @@ parse = first show . Parsec.parse parser "(outdated)"
 
 parser :: Stream s Identity Char => Parsec s u Conf
 parser = do
-  os  <- _OS <|> return (os defaultConf)
-  rec <- (char ';' >> parser') <|> return defaultConf
-  return rec { os }
+  os   <- _OS <|> return (os defaultConf)
+  conf <- (char ';' >> parser') <|> return defaultConf
+  return conf { os }
 
 parser' :: Stream s Identity Char => Parsec s u Conf
 parser' = do
   arch <- _Arch <|> return (arch defaultConf)
-  rec  <- (char ';' >> parser'') <|> return defaultConf
-  return rec { arch }
+  conf <- (char ';' >> parser'') <|> return defaultConf
+  return conf { arch }
 
 parser'' :: Stream s Identity Char => Parsec s u Conf
 parser'' = do
   impl <- _Impl <|> return (impl defaultConf)
-  rec  <- (char ';' >> parser''') <|> return defaultConf
-  return rec { impl }
+  conf <- (char ';' >> parser''') <|> return defaultConf
+  return conf { impl }
 
 parser''' :: Stream s Identity Char => Parsec s u Conf
 parser''' = _Flags >>= \cflags -> return defaultConf { cflags }
@@ -96,7 +96,7 @@ _Flag = asum
 
 -- | Parse flag name
 _FlagName :: Stream s Identity Char => Parsec s u FlagName
-_FlagName = fmap FlagName (many1 (satisfy (`notElem` [',', ';'])))
+_FlagName = fmap FlagName (many1 (satisfy (`notElem` ",;")))
 
 fromText :: Cabal.Text a => String -> Maybe a
 fromText s =
@@ -107,7 +107,7 @@ fromText s =
       _       -> Nothing
 
 unparse :: Conf -> String
-unparse c = intercalate ";" $
+unparse c = intercalate ";"
   [ Cabal.display (os c)
   , Cabal.display (arch c)
   , Cabal.display (impl c)

@@ -18,7 +18,7 @@ main = do
   index <- Latest.gather
   withTempDirectory minBound "/tmp" "outdated" $ \tmpDir ->
     runConduit $
-      Wrong.produce tmpDir confs paths index =$= C.mapInput Wrong.prettify (\_ -> Nothing) printAndDie
+      Wrong.produce tmpDir confs paths index =$= C.mapInput Wrong.prettify (const Nothing) printAndDie
 
 printAndDie :: MonadIO m => Sink String m a
 printAndDie = flip fix True $ \loop r -> do

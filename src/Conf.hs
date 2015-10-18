@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 module Conf
@@ -91,7 +90,7 @@ url = eitherReader $ \s -> do
   gitHub = "https://github.com/"
 
 file :: ReadM FilePath
-file = eitherReader $ \s -> do
+file = eitherReader $ \s ->
   s <$ note ("Not a Cabal file: ‘" ++ s ++ "’") (stripSuffix ".cabal" s)
  where
   stripSuffix suffix path =

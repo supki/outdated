@@ -81,7 +81,7 @@ produce tmpDir confs args index =
       case ed of
         Left  e -> C.yield (WrongCabal (Conf.foldArg Conf.displayGitHub (const file) (const file) arg) e)
         Right d ->
-          for_ confs $ \conf -> do
+          for_ confs $ \conf ->
             case askCabal index (Conf.formConf conf d) d of
               []       -> return ()
               (c : cs) -> C.yield (WrongConf (Conf.foldArg Conf.displayGitHub (const file) (const file) arg) conf (c :| cs))
@@ -156,7 +156,7 @@ component :: Problem -> Target
 component (Problem c _ _ _) = c
 
 lib :: Latest PackageName Version -> Conf -> GenericPackageDescription -> [Problem]
-lib = componentProblems (maybe [] (\x -> [((), x)]) . condLibrary) (\_ -> Library)
+lib = componentProblems (maybe [] (\x -> [((), x)]) . condLibrary) (const Library)
 
 exe :: Latest PackageName Version -> Conf -> GenericPackageDescription -> [Problem]
 exe = componentProblems condExecutables Executable
@@ -191,7 +191,7 @@ regroupRanges :: [Dependency] -> [Dependency]
 regroupRanges = map t2d . Map.toList . Map.fromListWith intersectVersionRanges . map d2t
  where
   d2t (Dependency n r) = (n, r)
-  t2d (n, r) = (Dependency n r)
+  t2d (n, r) = Dependency n r
 
 -- | Retrieve the version constraints falling under the proposed configuration
 complyingRanges :: Conf -> CondTree ConfVar [c] a -> [c]
